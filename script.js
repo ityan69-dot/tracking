@@ -8,6 +8,11 @@ const modeIndicator = document.getElementById('mode-indicator');
 const colorChip = document.getElementById('color-chip');
 const colorName = document.getElementById('color-name');
 const worldStatus = document.getElementById('world-status');
+const trackingStatus = document.getElementById('tracking-status');
+const objectLabelInput = document.getElementById('object-label-input');
+const trackObjectBtn = document.getElementById('track-object-btn');
+const aiDetectBtn = document.getElementById('ai-detect-btn');
+const speakObjectBtn = document.getElementById('speak-object-btn');
 
 const drawCtx = drawCanvas.getContext('2d');
 const effectCtx = effectCanvas.getContext('2d');
@@ -39,6 +44,201 @@ const palette = [
 let colorIndex = 0;
 let isColorPinching = false;
 let lastDrawPoint = null;
+let trackingEnabled = false;
+let trackedObjectLabel = '';
+let lastTrackingSpeechTime = 0;
+let aiDetectionEnabled = false;
+let aiDetectionModel = null;
+let aiPrediction = null;
+let aiPredictionPending = false;
+let lastAiPredictionTime = 0;
+let aiDetectionIntervalId = null;
+let lastSpokenLabel = '';
+const aiPredictionCooldown = 900;
+
+function updateTrackingUI() {
+  if (aiDetectionEnabled) {
+    if (aiPrediction) {
+      trackingStatus.textContent = `${aiPrediction.label.toUpperCase()} ${aiPrediction.confidence}%`;
+      trackingStatus.className = 'hud-value status-on';
+    } else {
+      trackingStatus.textContent = 'AI READY';
+      trackingStatus.className = 'hud-value highlight';
+    }
+    return;
+  }
+
+  if (!trackedObjectLabel) {
+    trackingStatus.textContent = 'IDLE';
+    trackingStatus.className = 'hud-value status-off';
+    return;
+  }
+
+  if (trackingEnabled) {
+    trackingStatus.textContent = trackedObjectLabel.toUpperCase();
+    trackingStatus.className = 'hud-value status-on';
+  } else {
+    trackingStatus.textContent = 'READY';
+    trackingStatus.className = 'hud-value highlight';
+  }
+}
+
+function getActiveLabel() {
+  if (aiDetectionEnabled && aiPrediction) {
+    return aiPrediction.label;
+  }
+  return trackedObjectLabel;
+}
+
+function speakTrackedLabel() {
+  const labelToSpeak = getActiveLabel();
+  if (!labelToSpeak || !('speechSynthesis' in window)) return;
+
+  const now = Date.now();
+  if (now - lastTrackingSpeechTime < 1800) return;
+  if (labelToSpeak === lastSpokenLabel) return;
+
+  lastTrackingSpeechTime = now;
+  lastSpokenLabel = labelToSpeak;
+  const utterance = new SpeechSynthesisUtterance(labelToSpeak);
+  utterance.lang = 'en-US';
+  utterance.rate = 0.95;
+  utterance.pitch = 1.05;
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(utterance);
+}
+
+trackObjectBtn.addEventListener('click', () => {
+  const nextLabel = objectLabelInput.value.trim();
+  if (!nextLabel) {
+    trackedObjectLabel = '';
+    trackingEnabled = false;
+    updateTrackingUI();
+    trackingStatus.textContent = 'ENTER LABEL';
+    trackingStatus.className = 'hud-value status-off';
+    return;
+  }
+
+  trackingEnabled = !trackingEnabled;
+  aiDetectionEnabled = false;
+  trackedObjectLabel = nextLabel;
+  updateTrackingUI();
+
+  if (trackingEnabled) {
+    speakTrackedLabel();
+  }
+});
+
+aiDetectBtn.addEventListener('click', async () => {
+  aiDetectionEnabled = !aiDetectionEnabled;
+  trackingEnabled = false;
+
+  if (aiDetectionEnabled) {
+    modeIndicator.textContent = 'AI OBJECT DETECTION';
+    await ensureAiModel();
+    startAiDetectionLoop();
+    updateTrackingUI();
+    if (aiDetectionModel) {
+      speakTrackedLabel();
+    }
+  } else {
+    aiPrediction = null;
+    stopAiDetectionLoop();
+    updateTrackingUI();
+  }
+});
+
+speakObjectBtn.addEventListener('click', () => {
+  speakTrackedLabel();
+});
+
+objectLabelInput.addEventListener('input', () => {
+  if (!objectLabelInput.value.trim()) {
+    trackingEnabled = false;
+    trackedObjectLabel = '';
+    updateTrackingUI();
+    return;
+  }
+
+  trackedObjectLabel = objectLabelInput.value.trim();
+  updateTrackingUI();
+});
+
+async function ensureAiModel() {
+  if (aiDetectionModel) {
+    return aiDetectionModel;
+  }
+
+  if (!window.cocoSsd) {
+    console.warn('COCO-SSD model is not available yet.');
+    return null;
+  }
+
+  try {
+    aiDetectionModel = await window.cocoSsd.load();
+    return aiDetectionModel;
+  } catch (error) {
+    console.error('Failed to load AI model:', error);
+    return null;
+  }
+}
+
+function drawPredictionOverlay(prediction, fingerPos) {
+  // Intentionally empty: no box overlay is drawn for AI detection.
+}
+
+function startAiDetectionLoop() {
+  if (aiDetectionIntervalId) return;
+  aiDetectionIntervalId = setInterval(() => {
+    runAiPrediction();
+  }, 1200);
+}
+
+function stopAiDetectionLoop() {
+  if (!aiDetectionIntervalId) return;
+  clearInterval(aiDetectionIntervalId);
+  aiDetectionIntervalId = null;
+}
+
+async function runAiPrediction() {
+  if (!aiDetectionEnabled || aiPredictionPending) return;
+  if (Date.now() - lastAiPredictionTime < aiPredictionCooldown) return;
+  if (!video.readyState || video.videoWidth === 0 || video.videoHeight === 0) return;
+
+  aiPredictionPending = true;
+  const model = await ensureAiModel();
+  if (!model) {
+    aiPredictionPending = false;
+    return;
+  }
+
+  try {
+    const predictions = await model.detect(video);
+    const bestPrediction = predictions
+      .filter((item) => item.score > 0.35)
+      .sort((a, b) => b.score - a.score)[0];
+
+    if (bestPrediction && bestPrediction.className) {
+      aiPrediction = {
+        label: bestPrediction.className,
+        confidence: Math.round(bestPrediction.score * 100)
+      };
+      modeIndicator.textContent = `AI: ${bestPrediction.className.toUpperCase()}`;
+      updateTrackingUI();
+      speakTrackedLabel();
+    } else {
+      aiPrediction = null;
+      modeIndicator.textContent = 'AI OBJECT DETECTION';
+      modeIndicator.className = 'hud-value highlight';
+      updateTrackingUI();
+    }
+  } catch (error) {
+    console.error('AI prediction failed:', error);
+  } finally {
+    lastAiPredictionTime = Date.now();
+    aiPredictionPending = false;
+  }
+}
 
 // Spark Particles Array for Drawing Effects
 const particles = [];
@@ -181,9 +381,15 @@ function onResults(results) {
     if (particles[i].alpha <= 0) particles.splice(i, 1);
   }
 
+  if (aiDetectionEnabled) {
+    runAiPrediction();
+  }
+
   if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
-    modeIndicator.textContent = "SEARCHING...";
-    modeIndicator.className = "hud-value highlight";
+    if (!aiDetectionEnabled) {
+      modeIndicator.textContent = "SEARCHING...";
+      modeIndicator.className = "hud-value highlight";
+    }
     threeCanvas.style.display = "none";
     worldStatus.textContent = "INACTIVE";
     worldStatus.className = "hud-value status-off";
@@ -232,6 +438,39 @@ function onResults(results) {
 
   const hand = hands[0];
   const indexPos = { x: hand.index.x * width, y: hand.index.y * height };
+
+  if (aiDetectionEnabled) {
+    runAiPrediction(indexPos);
+  }
+
+  if (trackingEnabled && trackedObjectLabel) {
+    effectCtx.save();
+    effectCtx.beginPath();
+    effectCtx.arc(indexPos.x, indexPos.y, 24, 0, Math.PI * 2);
+    effectCtx.fillStyle = 'rgba(255, 215, 0, 0.16)';
+    effectCtx.strokeStyle = '#ffd700';
+    effectCtx.lineWidth = 3;
+    effectCtx.fill();
+    effectCtx.stroke();
+
+    effectCtx.font = 'bold 22px Inter, sans-serif';
+    effectCtx.fillStyle = '#ffffff';
+    effectCtx.strokeStyle = 'rgba(0, 0, 0, 0.65)';
+    effectCtx.lineWidth = 6;
+    const labelText = trackedObjectLabel.toUpperCase();
+    const textX = indexPos.x + 24;
+    const textY = indexPos.y - 18;
+    effectCtx.strokeText(labelText, textX, textY);
+    effectCtx.fillText(labelText, textX, textY);
+    effectCtx.restore();
+
+    modeIndicator.textContent = `TRACKING: ${trackedObjectLabel.toUpperCase()}`;
+    if (hand.isOnlyIndex) {
+      speakTrackedLabel();
+    }
+    lastDrawPoint = null;
+    return;
+  }
 
   // GESTURE 2: Change Color (Thumb + Index Pinch)
   if (hand.thumbIndexPinch) {
@@ -337,3 +576,12 @@ const cameraUtils = new Camera(video, {
 });
 
 cameraUtils.start();
+
+// Auto-start AI detection so the feature works without visible control UI.
+(async () => {
+  aiDetectionEnabled = true;
+  modeIndicator.textContent = 'AI OBJECT DETECTION';
+  await ensureAiModel();
+  startAiDetectionLoop();
+  updateTrackingUI();
+})();

@@ -34,12 +34,28 @@
             <div class="hud-title">3D HOLOGRAM</div>
             <div id="world-status" class="hud-value status-off">INACTIVE</div>
         </div>
+        <div class="hud-card">
+            <div class="hud-title">OBJECT TRACK</div>
+            <div id="tracking-status" class="hud-value status-off">IDLE</div>
+        </div>
+    </div>
+
+    <div class="object-panel">
+        <label for="object-label-input" class="object-panel-label">OBJECT NAME</label>
+        <input id="object-label-input" type="text" placeholder="e.g. toy" maxlength="24" />
+        <div class="object-panel-actions">
+            <button id="track-object-btn" type="button">START TRACKING</button>
+            <button id="ai-detect-btn" type="button">AI DETECT</button>
+            <button id="speak-object-btn" type="button">SPEAK</button>
+        </div>
     </div>
 
     <!-- MediaPipe & Three.js CDN Dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.159.0/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
     <script src="script.js"></script>
 </body>
 
