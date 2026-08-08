@@ -1,0 +1,134 @@
+:root {
+  --bg-dark: #03050d;
+  --accent-cyan: #00f0ff;
+  --panel-bg: rgba(6, 11, 25, 0.75);
+  --panel-border: rgba(0, 240, 255, 0.3);
+  --text-primary: #ffffff;
+}
+
+* {
+  box-sizing: border-box;
+  user-select: none;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background-color: var(--bg-dark);
+  font-family:
+    "Inter",
+    system-ui,
+    -apple-system,
+    sans-serif;
+}
+
+/* Mirrored Video Stream */
+#webcam {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  object-fit: cover;
+  transform: scaleX(-1);
+  filter: brightness(0.45) contrast(1.15) saturate(1.2);
+  z-index: 0;
+}
+
+/* Layered Canvases (Mirrored for Intuitive Hand Tracking) */
+canvas {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  transform: scaleX(-1);
+  pointer-events: none;
+}
+
+#drawCanvas {
+  z-index: 1;
+}
+#effectCanvas {
+  z-index: 2;
+}
+#threeCanvas {
+  z-index: 3;
+}
+
+/* Futuristic Sci-Fi HUD */
+.hud-container {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  display: flex;
+  gap: 16px;
+  padding: 12px 24px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 20px;
+  backdrop-filter: blur(16px);
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.6),
+    inset 0 0 15px rgba(0, 240, 255, 0.1);
+}
+
+.hud-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 12px;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.hud-card:last-child {
+  border-right: none;
+}
+
+.hud-title {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 4px;
+}
+
+.hud-value {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: 0.05em;
+}
+
+.hud-value.highlight {
+  color: var(--accent-cyan);
+  text-shadow: 0 0 10px rgba(0, 240, 255, 0.6);
+}
+
+.hud-value.status-off {
+  color: #ff3b30;
+}
+
+.hud-value.status-on {
+  color: #30d158;
+  text-shadow: 0 0 10px rgba(48, 209, 88, 0.6);
+}
+
+.color-preview-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.color-chip {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background-color: var(--accent-cyan);
+  box-shadow: 0 0 12px var(--accent-cyan);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}

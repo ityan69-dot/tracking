@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Futuristic AI Hand Canvas & 3D Interactive World</title>
+    <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+    <!-- Webcam Stream -->
+    <video id="webcam" autoplay muted playsinline></video>
+
+    <!-- Canvas Stack -->
+    <canvas id="drawCanvas"></canvas>
+    <canvas id="effectCanvas"></canvas>
+    <canvas id="threeCanvas"></canvas>
+
+    <!-- Modern Sci-Fi HUD Overlay -->
+    <div class="hud-container">
+        <div class="hud-card">
+            <div class="hud-title">SYSTEM MODE</div>
+            <div id="mode-indicator" class="hud-value highlight">INITIALIZING</div>
+        </div>
+        <div class="hud-card">
+            <div class="hud-title">ACTIVE COLOR</div>
+            <div class="color-preview-container">
+                <span id="color-chip" class="color-chip"></span>
+                <span id="color-name" class="hud-value">CYAN</span>
+            </div>
+        </div>
+        <div class="hud-card">
+            <div class="hud-title">3D HOLOGRAM</div>
+            <div id="world-status" class="hud-value status-off">INACTIVE</div>
+        </div>
+    </div>
+
+    <!-- MediaPipe & Three.js CDN Dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.159.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="script.js"></script>
+</body>
+
+</html>
